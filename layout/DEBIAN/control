@@ -1,0 +1,9 @@
+Package: net.limneos.arragestatusbar
+Name: ArrageStatusBar
+Depends: mobilesubstrate, firmware (>=4.2)
+Version: 0.1
+Architecture: iphoneos-arm
+Description: Drag StatusBar items to arrange them
+Maintainer: Elias Limneos
+Author: Elias Limneos
+Section: Tweaks
