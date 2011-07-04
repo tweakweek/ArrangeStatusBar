@@ -14,7 +14,6 @@ static CGRect ownFrame=CGRectMake(0,0,0,0);
 static NSMutableArray *statusBarItems=nil;
 static BOOL isDragging=NO;
 
-
 %hook PSRootController
 %new(v@:)
 -(void)_ASBPostResetStatusBarNotification{
@@ -25,6 +24,7 @@ static BOOL isDragging=NO;
 %hook UIStatusBarItemView
 -(void)setUserInteractionEnabled:(BOOL)enabled{
 	%orig(YES);
+	//self.autoresizingMask=5;
 }
 -(void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *) event{
 	if ([[self item] type]!=1){
@@ -44,6 +44,7 @@ static BOOL isDragging=NO;
 	self.frame=ownFrame;
 	}
 }
+
 -(void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *) event{
 	
 	if ([[self item] type]!=1){
@@ -59,11 +60,13 @@ static BOOL isDragging=NO;
 			NSDictionary *dict=[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:[[subview item] type]],@"item",NSStringFromCGPoint([subview origin]),@"origin",nil];
 			[statusBarItems addObject:dict];
 		}
-		NSDictionary *dictToSave=[NSDictionary dictionaryWithObjectsAndKeys:statusBarItems,@"items",nil];
+		int orientation=[[UIApplication sharedApplication] interfaceOrientation];
+		NSDictionary *dictToSave=[NSDictionary dictionaryWithObjectsAndKeys:statusBarItems,@"items",[NSNumber numberWithInt:orientation],@"orientation",nil];
 		[dictToSave writeToFile:SBDICTPATH atomically:YES];
 		isDragging=NO;
 		
-  }
+	}
+	
 }
 
 -(void)setFrame:(CGRect)frame{
@@ -72,15 +75,19 @@ static BOOL isDragging=NO;
 		NSDictionary *savedDict=[NSDictionary dictionaryWithContentsOfFile:SBDICTPATH];
 		if (savedDict){
 			NSArray *originsOfViews=[savedDict objectForKey:@"items"];
+			int cachedOrientation=[[savedDict valueForKey:@"orientation"] intValue];
+			int orientation=[[UIApplication sharedApplication] interfaceOrientation];
 			for (NSDictionary *valueDict in originsOfViews){
 				if ([[self item] type] == [[valueDict objectForKey:@"item"] intValue]){
 					frame.origin=CGPointFromString([valueDict objectForKey:@"origin"]);
+					frame.origin.x=((orientation>2 && cachedOrientation>2) || (orientation<3 && cachedOrientation<3)) ? frame.origin.x : ((orientation>2 && cachedOrientation<3) ? frame.origin.x*1.5 : frame.origin.x/1.5) ;
 					break;
 				}
 			}
 		}
 	}
 	%orig;
+
 }
 %end
 
@@ -91,13 +98,13 @@ if (!isDragging)
 }
 %end
 
-
 static void resetSBArrangement(CFNotificationCenterRef center,
 					void *observer,
 					CFStringRef name,
 					const void *object,
 					CFDictionaryRef userInfo) {
 [[NSFileManager defaultManager] removeFileAtPath:SBDICTPATH handler: nil]; 	[[NSFileManager defaultManager] removeFileAtPath:PREFSPATH handler: nil];
+
 }
 
 
