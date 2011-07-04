@@ -17,14 +17,13 @@ static BOOL isDragging=NO;
 %hook PSRootController
 %new(v@:)
 -(void)_ASBPostResetStatusBarNotification{
-	notify_post("net.limneos.arragestatusbar.reset");
+	notify_post("net.limneos.arrangestatusbar.reset");
 }
 %end
 
 %hook UIStatusBarItemView
 -(void)setUserInteractionEnabled:(BOOL)enabled{
 	%orig(YES);
-	//self.autoresizingMask=5;
 }
 -(void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *) event{
 	if ([[self item] type]!=1){
@@ -72,15 +71,18 @@ static BOOL isDragging=NO;
 -(void)setFrame:(CGRect)frame{
 
 	if (!isDragging && [[self item] type]!=1){
-		NSDictionary *savedDict=[NSDictionary dictionaryWithContentsOfFile:SBDICTPATH];
-		if (savedDict){
-			NSArray *originsOfViews=[savedDict objectForKey:@"items"];
-			int cachedOrientation=[[savedDict valueForKey:@"orientation"] intValue];
+		NSDictionary *dictToLoad=[NSDictionary dictionaryWithContentsOfFile:SBDICTPATH];
+		if (dictToLoad){
+			NSArray *originsOfViews=[dictToLoad objectForKey:@"items"];
+			int cachedOrientation=[[dictToLoad objectForKey:@"orientation"] intValue];
 			int orientation=[[UIApplication sharedApplication] interfaceOrientation];
-			for (NSDictionary *valueDict in originsOfViews){
-				if ([[self item] type] == [[valueDict objectForKey:@"item"] intValue]){
-					frame.origin=CGPointFromString([valueDict objectForKey:@"origin"]);
-					frame.origin.x=((orientation>2 && cachedOrientation>2) || (orientation<3 && cachedOrientation<3)) ? frame.origin.x : ((orientation>2 && cachedOrientation<3) ? frame.origin.x*1.5 : frame.origin.x/1.5) ;
+			CGRect screenBounds=[[UIScreen mainScreen] bounds];
+			CGSize screenSize=screenBounds.size;
+			float divider=screenSize.width>screenSize.height ? screenSize.width/screenSize.height : screenSize.height/screenSize.width;
+			for (NSDictionary *valuesDict in originsOfViews){
+				if ([[self item] type] == [[valuesDict objectForKey:@"item"] intValue]){
+					frame.origin=CGPointFromString([valuesDict objectForKey:@"origin"]);
+					frame.origin.x=((orientation>2 && cachedOrientation>2) || (orientation<3 && cachedOrientation<3)) ? frame.origin.x : ((orientation>2 && cachedOrientation<3) ? frame.origin.x*divider : frame.origin.x/divider) ;
 					break;
 				}
 			}
@@ -111,6 +113,6 @@ static void resetSBArrangement(CFNotificationCenterRef center,
 %ctor {
 		if ([[[NSBundle mainBundle] bundleIdentifier] isEqual:@"com.apple.springboard"]){
 			CFNotificationCenterRef r = CFNotificationCenterGetDarwinNotifyCenter();
-			CFNotificationCenterAddObserver(r, NULL, &resetSBArrangement, CFSTR("net.limneos.arragestatusbar.reset"), NULL, 0);
+			CFNotificationCenterAddObserver(r, NULL, &resetSBArrangement, CFSTR("net.limneos.arrangestatusbar.reset"), NULL, 0);
 		}
 }
