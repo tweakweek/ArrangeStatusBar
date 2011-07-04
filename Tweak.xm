@@ -2,6 +2,7 @@
 #import <UIKit/UIStatusBarItemView.h>
 #import <UIKit/UIStatusBarItem.h>
 #import <QuartzCore/CALayer.h>
+#import <UIKit/UIKit2.h>
 #import <notify.h>
 #define SBDICTPATH @"/var/mobile/Library/Preferences/net.limneos.arrangesbstatusbar.plist"
 #define PREFSPATH @"/var/mobile/Library/Preferences/net.limneos.arrangestatusbar.plist"
