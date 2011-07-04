@@ -1,9 +1,9 @@
-#import <UIStatusBar.h>
-#import <UIStatusBarItemView.h>
-#import <UIStatusBarItem.h>
+#import <UIKit/UIStatusBar.h>
+#import <UIKit/UIStatusBarItemView.h>
+#import <UIKit/UIStatusBarItem.h>
 #import <QuartzCore/CALayer.h>
 #import <notify.h>
-#define SBDICTPATH @"/var/mobile/Library/Preferences/net.limneos.arragesbstatusbar.plist"
+#define SBDICTPATH @"/var/mobile/Library/Preferences/net.limneos.arrangesbstatusbar.plist"
 #define PREFSPATH @"/var/mobile/Library/Preferences/net.limneos.arrangestatusbar.plist"
 
 @interface NSFileManager (iOS4additions)
