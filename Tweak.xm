@@ -1,6 +1,6 @@
-#import <UIStatusBar.h>
-#import <UIStatusBarItemView.h>
-#import <UIStatusBarItem.h>
+#import <UIKit/UIStatusBar.h>
+#import <UIKit/UIStatusBarItemView.h>
+#import <UIKit/UIStatusBarItem.h>
 #import <QuartzCore/CALayer.h>
 #import <UIKit/UIKit2.h>
 #import <notify.h>
