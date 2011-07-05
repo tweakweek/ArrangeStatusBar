@@ -1,7 +1,8 @@
-#import <UIKit/UIStatusBar.h>
-#import <UIKit/UIStatusBarItemView.h>
-#import <UIKit/UIStatusBarItem.h>
+#import <UIStatusBar.h>
+#import <UIStatusBarItemView.h>
+#import <UIStatusBarItem.h>
 #import <QuartzCore/CALayer.h>
+#import <UIKit/UIKit2.h>
 #import <notify.h>
 #define SBDICTPATH @"/var/mobile/Library/Preferences/net.limneos.arrangesbstatusbar.plist"
 #define PREFSPATH @"/var/mobile/Library/Preferences/net.limneos.arrangestatusbar.plist"
@@ -11,8 +12,8 @@
 @end
 
 static CGRect ownFrame=CGRectMake(0,0,0,0);
-static NSMutableArray *statusBarItems=nil;
 static BOOL isDragging=NO;
+static BOOL ItemsLocked=NO;
 
 %hook PSRootController
 %new(v@:)
@@ -23,17 +24,25 @@ static BOOL isDragging=NO;
 
 %hook UIStatusBarItemView
 -(void)setUserInteractionEnabled:(BOOL)enabled{
-	%orig(YES);
+	enabled=!ItemsLocked;
+	%orig;
 }
 -(void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *) event{
-	if ([[self item] type]!=1){
-		self.layer.borderColor=[[[UIColor whiteColor] colorWithAlphaComponent:0.7] CGColor];
-		self.layer.borderWidth=1;
-		self.layer.cornerRadius=2;
+	
+	if (ItemsLocked){
+		%orig;
+		return;
 	}
+	self.layer.borderColor=[[[UIColor whiteColor] colorWithAlphaComponent:0.7] CGColor];
+	self.layer.borderWidth=1;
+	self.layer.cornerRadius=2;
 }
 -(void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *) event{
-	if ([[self item] type]!=1){
+	
+	if (ItemsLocked){
+		%orig;
+		return;
+	}
 	isDragging=YES;
 	UITouch *touch=[touches anyObject];
 	CGPoint location=[touch locationInView:[self window]];
@@ -41,56 +50,50 @@ static BOOL isDragging=NO;
 	ownFrame=self.frame;
 	ownFrame.origin.x=location.x-self.frame.size.width/2;
 	self.frame=ownFrame;
-	}
 }
 
 -(void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *) event{
-	
-	if ([[self item] type]!=1){
-	
-		self.layer.borderWidth=0;
-		self.frame=ownFrame;
-		if (statusBarItems)
-			[statusBarItems release];
-		statusBarItems=[[NSMutableArray array] retain];
-		UIStatusBar *statusBar=[[UIApplication sharedApplication] statusBar];
-		UIView *frontView=MSHookIvar<UIView *>(statusBar,"_foregroundView");
-		for (UIStatusBarItemView *subview in [frontView subviews]){
-			NSDictionary *dict=[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:[[subview item] type]],@"item",NSStringFromCGPoint([subview origin]),@"origin",nil];
-			[statusBarItems addObject:dict];
-		}
-		int orientation=[[UIApplication sharedApplication] interfaceOrientation];
-		NSDictionary *dictToSave=[NSDictionary dictionaryWithObjectsAndKeys:statusBarItems,@"items",[NSNumber numberWithInt:orientation],@"orientation",nil];
-		[dictToSave writeToFile:SBDICTPATH atomically:YES];
-		isDragging=NO;
-		
+	if (ItemsLocked){
+		%orig;
+		return;
 	}
-	
+	self.layer.borderWidth=0;
+	self.frame=ownFrame;
+	NSMutableDictionary *dict=[NSMutableDictionary dictionaryWithContentsOfFile:SBDICTPATH];
+	if (!dict)
+		dict=[NSMutableDictionary dictionary];
+	UIStatusBar *statusBar=[[UIApplication sharedApplication] statusBar];
+	UIView *frontView=MSHookIvar<UIView *>(statusBar,"_foregroundView");
+	for (UIStatusBarItemView *subview in [frontView subviews]){
+		float originX=subview.frame.origin.x;
+		[dict setObject:[NSNumber numberWithFloat:originX] forKey:[NSString stringWithFormat:@"originXForItem%d",[[subview item] type]] ];
+	}
+	int orientation=[[UIApplication sharedApplication] interfaceOrientation];
+	[dict setObject:[NSNumber numberWithInt:orientation] forKey:@"orientation"];
+	[dict writeToFile:SBDICTPATH atomically:YES];
+	isDragging=NO;
 }
 
 -(void)setFrame:(CGRect)frame{
 
-	if (!isDragging && [[self item] type]!=1){
-		NSDictionary *dictToLoad=[NSDictionary dictionaryWithContentsOfFile:SBDICTPATH];
-		if (dictToLoad){
-			NSArray *originsOfViews=[dictToLoad objectForKey:@"items"];
-			int cachedOrientation=[[dictToLoad objectForKey:@"orientation"] intValue];
+	if (!isDragging){
+		NSDictionary *dict=[NSDictionary dictionaryWithContentsOfFile:SBDICTPATH];
+		
+		if (dict && [dict objectForKey:[NSString stringWithFormat:@"originXForItem%d",[[self item] type]]] ){
+			int cachedOrientation=[[dict objectForKey:@"orientation"] intValue];
 			int orientation=[[UIApplication sharedApplication] interfaceOrientation];
 			CGRect screenBounds=[[UIScreen mainScreen] bounds];
 			CGSize screenSize=screenBounds.size;
 			float divider=screenSize.width>screenSize.height ? screenSize.width/screenSize.height : screenSize.height/screenSize.width;
-			for (NSDictionary *valuesDict in originsOfViews){
-				if ([[self item] type] == [[valuesDict objectForKey:@"item"] intValue]){
-					frame.origin=CGPointFromString([valuesDict objectForKey:@"origin"]);
-					frame.origin.x=((orientation>2 && cachedOrientation>2) || (orientation<3 && cachedOrientation<3)) ? frame.origin.x : ((orientation>2 && cachedOrientation<3) ? frame.origin.x*divider : frame.origin.x/divider) ;
-					break;
-				}
-			}
+			frame.origin.x=[[dict objectForKey:[NSString stringWithFormat:@"originXForItem%d",[[self item] type] ] ] floatValue];
+			frame.origin.x=((orientation>2 && cachedOrientation>2) || (orientation<3 && cachedOrientation<3)) ? frame.origin.x : ((orientation>2 && cachedOrientation<3) ? frame.origin.x*divider : frame.origin.x/divider) ;
 		}
 	}
+	
 	%orig;
 
 }
+
 %end
 
 %hook UIStatusBarServer
@@ -105,14 +108,41 @@ static void resetSBArrangement(CFNotificationCenterRef center,
 					CFStringRef name,
 					const void *object,
 					CFDictionaryRef userInfo) {
-[[NSFileManager defaultManager] removeFileAtPath:SBDICTPATH handler: nil]; 	[[NSFileManager defaultManager] removeFileAtPath:PREFSPATH handler: nil];
+[[NSFileManager defaultManager] removeFileAtPath:SBDICTPATH handler: nil]; 
 
 }
 
 
+static void getSettings(){
+
+	NSDictionary *settingsDict=[NSDictionary dictionaryWithContentsOfFile:PREFSPATH];
+	ItemsLocked=[settingsDict objectForKey:@"Locked"]!=nil ? [[settingsDict objectForKey:@"Locked"] boolValue] : NO;
+
+}
+static void updateSettings(CFNotificationCenterRef center,
+					void *observer,
+					CFStringRef name,
+					const void *object,
+					CFDictionaryRef userInfo) {
+	getSettings();
+}
+
+%hook UIApplication
+-(void)_reportAppLaunchFinished{
+	
+	%orig;
+	getSettings();
+	
+}
+%end
+
+
+
 %ctor {
+		CFNotificationCenterRef r = CFNotificationCenterGetDarwinNotifyCenter();
+		CFNotificationCenterAddObserver(r, NULL, &updateSettings, CFSTR("net.limneos.arrangestatusbar.updatesettings"), NULL, 0);
 		if ([[[NSBundle mainBundle] bundleIdentifier] isEqual:@"com.apple.springboard"]){
-			CFNotificationCenterRef r = CFNotificationCenterGetDarwinNotifyCenter();
 			CFNotificationCenterAddObserver(r, NULL, &resetSBArrangement, CFSTR("net.limneos.arrangestatusbar.reset"), NULL, 0);
 		}
+		
 }

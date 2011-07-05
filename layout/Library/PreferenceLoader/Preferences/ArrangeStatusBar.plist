@@ -18,6 +18,24 @@
 			<string>PSGroupCell</string> 
 		</dict>
 		<dict>
+			<key>PostNotification</key>
+			<string>net.limneos.arrangestatusbar.updatesettings</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>key</key>
+			<string>Locked</string>
+			<key>default</key>
+			<false/>
+			<key>label</key>
+			<string>Lock Current Items</string>
+			<key>defaults</key>
+			<string>net.limneos.arrangestatusbar</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string> 
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
